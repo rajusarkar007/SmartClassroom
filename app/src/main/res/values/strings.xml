@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">Smart Classroom</string>
+    <string name="login">Login</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="remember_me">Remember me</string>
+    <string name="register_as_student">Register as Student</string>
+    <string name="register_as_teacher">Register as Teacher</string>
+    <string name="student_signup">Student Signup</string>
+    <string name="teacher_signup">Teacher Signup</string>
+    <string name="full_name">Full Name</string>
+    <string name="student_id">Student ID</string>
+    <string name="teacher_id">Teacher ID</string>
+    <string name="institution_name">Institution / College Name</string>
+    <string name="department">Department</string>
+    <string name="semester">Academic Semester</string>
+    <string name="section">Section</string>
+    <string name="classroom_name">Classroom Name</string>
+    <string name="course_name">Course Name</string>
+    <string name="course_code">Course Code</string>
+    <string name="course_credit">Course Credit</string>
+    <string name="planned_classes">Planned Classes</string>
+    <string name="description">Description (Optional)</string>
+    <string name="create_classroom">Create Classroom</string>
+    <string name="join_classroom">Join Classroom</string>
+    <string name="enter_classroom_code">Enter Classroom Code</string>
+    <string name="logout">Logout</string>
+</resources>

@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserData().role == 'TEACHER';
+    }
+
+    function isClassroomTeacher(classroomId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/classrooms/$(classroomId)).data.teacherId == request.auth.uid
+      );
+    }
+
+    function isClassroomRepresentative(classroomId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/classroom_members/$(request.auth.uid + '_' + classroomId))
+        && get(/databases/$(database)/documents/classroom_members/$(request.auth.uid + '_' + classroomId)).data.classRepresentative == true;
+    }
+
+    function isClassroomMember(classroomId) {
+      return isAuthenticated() && (
+        isClassroomTeacher(classroomId) ||
+        exists(/databases/$(database)/documents/classroom_members/$(request.auth.uid + '_' + classroomId))
+      );
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Users can only create their own profile during signup
+      allow create: if isUser(userId) && request.resource.data.uid == userId;
+      // Users can update their own profile, but CANNOT change their role
+      allow update: if isUser(userId) && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    // 2. Classrooms collection
+    match /classrooms/{classroomId} {
+      // Anyone authenticated can read classrooms (needed to verify join code)
+      allow read: if isAuthenticated();
+      // Only teachers can create classrooms
+      allow create: if isTeacher() && request.resource.data.teacherId == request.auth.uid;
+      // Only the teacher who owns the classroom can update or delete
+      allow update, delete: if isClassroomTeacher(classroomId);
+    }
+
+    // 3. Classroom Members
+    match /classroom_members/{memberId} {
+      allow read: if isAuthenticated();
+      // Teachers can add/edit members; or approving join requests
+      allow create, update, delete: if isAuthenticated() && (
+        isTeacher() ||
+        (resource != null && isClassroomTeacher(resource.data.classroomId)) ||
+        (request.resource != null && isClassroomTeacher(request.resource.data.classroomId))
+      );
+    }
+
+    // 4. Join Requests
+    match /join_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentUid == request.auth.uid ||
+        resource.data.teacherId == request.auth.uid
+      );
+      // Students can create their own join requests
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
+      // Teachers can approve or reject join requests for their classes
+      allow update: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        isClassroomTeacher(resource.data.classroomId)
+      );
+      allow delete: if isAuthenticated() && resource.data.teacherId == request.auth.uid;
+    }
+
+    // 5. Attendance Sessions
+    match /attendance_sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      // Only teacher of the classroom can create/modify attendance sessions
+      allow create, update, delete: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        (resource != null && isClassroomTeacher(resource.data.classroomId))
+      );
+    }
+
+    // 6. Attendance Records
+    match /attendance_records/{recordId} {
+      // Students can ONLY read their own attendance records; teachers can read all
+      allow read: if isAuthenticated() && (
+        resource.data.studentUid == request.auth.uid ||
+        isClassroomTeacher(resource.data.classroomId)
+      );
+      // Students cannot modify attendance records; only teacher can write
+      allow create, update, delete: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        (resource != null && isClassroomTeacher(resource.data.classroomId))
+      );
+    }
+
+    // 7. Assessments
+    match /assessments/{assessmentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        (resource != null && isClassroomTeacher(resource.data.classroomId))
+      );
+    }
+
+    // 8. Student Marks
+    match /student_marks/{markId} {
+      // Students can ONLY read their own marks; teachers can read all
+      allow read: if isAuthenticated() && (
+        resource.data.studentUid == request.auth.uid ||
+        isClassroomTeacher(resource.data.classroomId)
+      );
+      // Students cannot modify marks; only teacher can write marks
+      allow create, update, delete: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        (resource != null && isClassroomTeacher(resource.data.classroomId))
+      );
+    }
+
+    // 9. Class Schedules
+    match /class_schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+      // Teachers and authorized Class Representatives can create/update schedules
+      allow create, update: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        isClassroomRepresentative(request.resource.data.classroomId)
+      );
+      // Only teacher can delete
+      allow delete: if isAuthenticated() && isClassroomTeacher(resource.data.classroomId);
+    }
+
+    // 10. Notices
+    match /notices/{noticeId} {
+      allow read: if isAuthenticated();
+      // Teachers and authorized Class Representatives can create notices
+      allow create: if isAuthenticated() && (
+        isClassroomTeacher(request.resource.data.classroomId) ||
+        isClassroomRepresentative(request.resource.data.classroomId)
+      );
+      // Author or Teacher can delete notice
+      allow update, delete: if isAuthenticated() && (
+        resource.data.authorUid == request.auth.uid ||
+        isClassroomTeacher(resource.data.classroomId)
+      );
+    }
+
+    // 11. Personal Notes (Strictly Private)
+    match /personal_notes/{noteId} {
+      // ONLY the student who created the note can read, write, update, or delete it
+      // Neither teachers nor other students can ever access them
+      allow read, write, update, delete: if isAuthenticated() && (
+        (resource == null && request.resource.data.studentUid == request.auth.uid) ||
+        (resource != null && resource.data.studentUid == request.auth.uid)
+      );
+    }
+
+  }
+}
