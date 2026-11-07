@@ -5,13 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="@color/background">
+    android:background="#050806">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="20dp"
+        android:paddingBottom="32dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -21,50 +22,119 @@
 
             <ImageButton
                 android:id="@+id/btnBack"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:src="@drawable/ic_arrow_back"
-                app:tint="@color/text_primary" />
+                app:tint="#FFFFFF" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="Create Classroom"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CLASSROOM MANAGEMENT"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.14" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Create Classroom"
+                    android:textColor="#FFFFFF"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp"
-            app:cardBackgroundColor="@color/card_bg">
+            android:layout_marginTop="24dp"
+            app:cardBackgroundColor="#101B15"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#294536"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Set up your new class"
+                    android:textColor="#FFFFFF"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="7dp"
+                    android:text="Enter your course details and classroom information. A classroom code will be generated after creation."
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:lineSpacingExtra="3dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="#101B15"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#294536"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="01  BASIC INFORMATION"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="14dp" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/tilClassroomName"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Classroom Name (e.g. CSE-211-A)">
+                    android:hint="Classroom Name"
+                    app:boxBackgroundColor="#0A120D"
+                    app:boxStrokeColor="#10B981"
+                    app:hintTextColor="#FFFFFF">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etClassroomName"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#FFFFFF"
+                        android:hint="Enter classroom name"
+                        android:inputType="textCapWords"
+                        android:singleLine="true" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
@@ -72,20 +142,27 @@
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:hint="Course Name (e.g. Data Structures)">
+                    android:layout_marginTop="12dp"
+                    android:hint="Course Name"
+                    app:boxBackgroundColor="#0A120D"
+                    app:boxStrokeColor="#10B981"
+                    app:hintTextColor="#FFFFFF">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etCourseName"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#FFFFFF"
+                        android:hint="Enter course name"
+                        android:inputType="textCapWords" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="12dp">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilCourseCode"
@@ -94,12 +171,18 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
-                        android:hint="Course Code">
+                        android:hint="Course Code"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etCourseCode"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. CSE-211"
                             android:inputType="textCapCharacters" />
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -110,21 +193,36 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
-                        android:hint="Credits (e.g. 3.0)">
+                        android:hint="Credits"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etCourseCredit"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. 3.0"
                             android:inputType="numberDecimal" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="25dp"
+                    android:layout_marginBottom="14dp"
+                    android:text="02  ACADEMIC DETAILS"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="10dp">
+                    android:orientation="horizontal">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilDepartment"
@@ -133,12 +231,19 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
-                        android:hint="Department">
+                        android:hint="Department"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etDepartment"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. CSE"
+                            android:inputType="textCapWords" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -148,12 +253,19 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
-                        android:hint="Semester">
+                        android:hint="Semester"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etSemester"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. 3rd"
+                            android:inputType="text" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
@@ -161,7 +273,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="12dp">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilSection"
@@ -170,12 +282,19 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
-                        android:hint="Section (e.g. Section A)">
+                        android:hint="Section"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etSection"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. A"
+                            android:inputType="textCapCharacters" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -185,12 +304,18 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
-                        android:hint="Planned Classes">
+                        android:hint="Planned Classes"
+                        app:boxBackgroundColor="#0A120D"
+                        app:boxStrokeColor="#10B981"
+                        app:hintTextColor="#FFFFFF">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPlannedClasses"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#FFFFFF"
+                            android:hint="e.g. 30"
                             android:inputType="number" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
@@ -200,53 +325,91 @@
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:hint="Total Students Capacity">
+                    android:layout_marginTop="12dp"
+                    android:hint="Total Students Capacity"
+                    app:boxBackgroundColor="#0A120D"
+                    app:boxStrokeColor="#10B981"
+                    app:hintTextColor="#FFFFFF">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etTotalStudents"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#FFFFFF"
+                        android:hint="Enter maximum students"
                         android:inputType="number" />
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="25dp"
+                    android:layout_marginBottom="14dp"
+                    android:text="03  ADDITIONAL INFORMATION"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/tilDescription"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:hint="Optional Classroom Description">
+                    android:hint="Optional Classroom Description"
+                    app:boxBackgroundColor="#0A120D"
+                    app:boxStrokeColor="#10B981"
+                    app:hintTextColor="#FFFFFF">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etDescription"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:textColorHint="#FFFFFF"
+                        android:hint="Write a short description..."
                         android:inputType="textMultiLine"
-                        android:lines="3" />
+                        android:lines="3"
+                        android:gravity="top"
+                        android:minHeight="90dp" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSubmitCreate"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:layout_marginTop="18dp"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="24dp"
                     android:text="Generate Classroom &amp; Code"
-                    android:textSize="15sp"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
                     android:textStyle="bold"
-                    app:cornerRadius="12dp" />
+                    app:backgroundTint="#10B981"
+                    app:cornerRadius="14dp"
+                    app:icon="@drawable/ic_add"
+                    app:iconTint="#FFFFFF"
+                    app:iconPadding="10dp" />
 
                 <ProgressBar
                     android:id="@+id/progressBar"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_gravity="center"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
+                    android:indeterminateTint="#10B981"
                     android:visibility="gone" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-    </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="18dp"
+            android:text="SMART CLASSROOM  •  TEACHER PORTAL"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:letterSpacing="0.08" />
 
+    </LinearLayout>
 </ScrollView>

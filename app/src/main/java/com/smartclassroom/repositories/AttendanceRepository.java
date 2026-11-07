@@ -1,5 +1,8 @@
+
 package com.smartclassroom.repositories;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -13,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AttendanceRepository {
+
     private static AttendanceRepository instance;
     private final FirebaseFirestore db;
 
@@ -40,10 +44,18 @@ public class AttendanceRepository {
         return instance;
     }
 
-    public void checkDuplicateSession(String classroomId, String section, String date, int classNumber, Callback<Boolean> callback) {
+    // Check duplicate attendance session
+    public void checkDuplicateSession(
+            String classroomId,
+            String section,
+            String date,
+            int classNumber,
+            Callback<Boolean> callback
+    ) {
         db.collection(Constants.COLLECTION_ATTENDANCE_SESSIONS)
                 .whereEqualTo("classroomId", classroomId)
                 .whereEqualTo("section", section)
+                .whereEqualTo("date", date)
                 .whereEqualTo("classNumber", classNumber)
                 .limit(1)
                 .get()
@@ -54,19 +66,59 @@ public class AttendanceRepository {
                 .addOnFailureListener(e -> callback.onError(e.getMessage()));
     }
 
-    public void submitAttendance(AttendanceSession session, List<AttendanceRecord> records, Callback<Void> callback) {
-        // Prevent accidental duplicate submission
-        checkDuplicateSession(session.getClassroomId(), session.getSection(), session.getDate(), session.getClassNumber(),
+    // Submit attendance
+    public void submitAttendance(
+            AttendanceSession session,
+            List<AttendanceRecord> records,
+            Callback<Void> callback
+    ) {
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+
+        if (currentUser == null) {
+            callback.onError("User is not authenticated.");
+            return;
+        }
+
+        if (session == null || records == null || records.isEmpty()) {
+            callback.onError("Invalid attendance data.");
+            return;
+        }
+
+        if (records.size() + 1 > 500) {
+            callback.onError("Too many attendance records for one batch.");
+            return;
+        }
+
+        session.setTeacherId(currentUser.getUid());
+
+        checkDuplicateSession(
+                session.getClassroomId(),
+                session.getSection(),
+                session.getDate(),
+                session.getClassNumber(),
                 new Callback<Boolean>() {
+
                     @Override
                     public void onSuccess(Boolean duplicate) {
+
                         if (duplicate) {
-                            callback.onError("Attendance for Class #" + session.getClassNumber() + " in section " + session.getSection() + " has already been submitted.");
+                            callback.onError(
+                                    "Attendance for Class #" +
+                                            session.getClassNumber() +
+                                            " in section " +
+                                            session.getSection() +
+                                            " has already been submitted."
+                            );
                             return;
                         }
 
                         WriteBatch batch = db.batch();
-                        DocumentReference sessionRef = db.collection(Constants.COLLECTION_ATTENDANCE_SESSIONS).document();
+
+                        DocumentReference sessionRef =
+                                db.collection(Constants.COLLECTION_ATTENDANCE_SESSIONS)
+                                        .document();
+
                         session.setSessionId(sessionRef.getId());
                         session.setTimestamp(System.currentTimeMillis());
 
@@ -74,134 +126,239 @@ public class AttendanceRepository {
                         int absent = 0;
                         int late = 0;
 
-                        for (AttendanceRecord r : records) {
-                            DocumentReference recRef = db.collection(Constants.COLLECTION_ATTENDANCE_RECORDS).document();
-                            r.setRecordId(recRef.getId());
-                            r.setSessionId(sessionRef.getId());
-                            r.setClassroomId(session.getClassroomId());
-                            r.setSection(session.getSection());
-                            r.setDate(session.getDate());
-                            r.setClassNumber(session.getClassNumber());
-                            r.setTimestamp(session.getTimestamp());
+                        for (AttendanceRecord record : records) {
 
-                            if (Constants.STATUS_PRESENT.equalsIgnoreCase(r.getStatus())) {
-                                present++;
-                            } else if (Constants.STATUS_LATE.equalsIgnoreCase(r.getStatus())) {
-                                late++;
-                            } else {
-                                absent++;
+                            if (record == null ||
+                                    record.getStudentUid() == null ||
+                                    record.getStudentUid().trim().isEmpty()) {
+
+                                callback.onError("Invalid student attendance record.");
+                                return;
                             }
-                            batch.set(recRef, r);
+
+                            DocumentReference recordRef =
+                                    db.collection(Constants.COLLECTION_ATTENDANCE_RECORDS)
+                                            .document();
+
+                            record.setRecordId(recordRef.getId());
+                            record.setSessionId(sessionRef.getId());
+                            record.setClassroomId(session.getClassroomId());
+                            record.setSection(session.getSection());
+                            record.setDate(session.getDate());
+                            record.setClassNumber(session.getClassNumber());
+                            record.setTimestamp(session.getTimestamp());
+
+                            String status = record.getStatus();
+
+                            if (Constants.STATUS_PRESENT.equalsIgnoreCase(status)) {
+                                present++;
+
+                            } else if (Constants.STATUS_LATE.equalsIgnoreCase(status)) {
+                                late++;
+
+                            } else if (Constants.STATUS_ABSENT.equalsIgnoreCase(status)) {
+                                absent++;
+
+                            } else {
+                                callback.onError("Invalid attendance status.");
+                                return;
+                            }
+
+                            batch.set(recordRef, record);
                         }
 
                         session.setTotalPresent(present);
                         session.setTotalAbsent(absent);
                         session.setTotalLate(late);
+
                         batch.set(sessionRef, session);
 
                         batch.commit()
-                                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                                .addOnSuccessListener(unused ->
+                                        callback.onSuccess(null))
+                                .addOnFailureListener(e ->
+                                        callback.onError(e.getMessage()));
                     }
 
                     @Override
                     public void onError(String message) {
                         callback.onError(message);
                     }
-                });
+                }
+        );
     }
 
-    public ListenerRegistration listenAttendanceSessions(String classroomId, String section, Callback<List<AttendanceSession>> callback) {
+    // Listen to classroom attendance sessions
+    public ListenerRegistration listenAttendanceSessions(
+            String classroomId,
+            String section,
+            Callback<List<AttendanceSession>> callback
+    ) {
+
         Query query = db.collection(Constants.COLLECTION_ATTENDANCE_SESSIONS)
                 .whereEqualTo("classroomId", classroomId);
-        if (section != null && !section.isEmpty() && !"All".equalsIgnoreCase(section)) {
+
+        if (section != null &&
+                !section.isEmpty() &&
+                !"All".equalsIgnoreCase(section)) {
+
             query = query.whereEqualTo("section", section);
         }
 
         return query.addSnapshotListener((snapshots, error) -> {
+
             if (error != null) {
                 callback.onError(error.getMessage());
                 return;
             }
+
             List<AttendanceSession> list = new ArrayList<>();
+
             if (snapshots != null) {
                 for (var doc : snapshots.getDocuments()) {
-                    AttendanceSession s = doc.toObject(AttendanceSession.class);
-                    if (s != null) list.add(s);
+
+                    AttendanceSession session =
+                            doc.toObject(AttendanceSession.class);
+
+                    if (session != null) {
+                        list.add(session);
+                    }
                 }
             }
-            // Sort by class number descending
-            list.sort((a, b) -> Integer.compare(b.getClassNumber(), a.getClassNumber()));
+
+            list.sort((a, b) ->
+                    Integer.compare(
+                            b.getClassNumber(),
+                            a.getClassNumber()
+                    )
+            );
+
             callback.onSuccess(list);
         });
     }
 
-    public void getAttendanceRecordsForSession(String sessionId, Callback<List<AttendanceRecord>> callback) {
+    // Get attendance records for a session
+    public void getAttendanceRecordsForSession(
+            String sessionId,
+            Callback<List<AttendanceRecord>> callback
+    ) {
+
         db.collection(Constants.COLLECTION_ATTENDANCE_RECORDS)
                 .whereEqualTo("sessionId", sessionId)
                 .get()
                 .addOnSuccessListener(snaps -> {
+
                     List<AttendanceRecord> list = new ArrayList<>();
+
                     if (snaps != null) {
                         for (var doc : snaps.getDocuments()) {
-                            AttendanceRecord r = doc.toObject(AttendanceRecord.class);
-                            if (r != null) list.add(r);
+
+                            AttendanceRecord record =
+                                    doc.toObject(AttendanceRecord.class);
+
+                            if (record != null) {
+                                list.add(record);
+                            }
                         }
                     }
+
                     callback.onSuccess(list);
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e ->
+                        callback.onError(e.getMessage()));
     }
 
-    public ListenerRegistration listenStudentAttendance(String classroomId, String studentUid, Callback<List<AttendanceRecord>> callback) {
+    // Listen to individual student attendance
+    public ListenerRegistration listenStudentAttendance(
+            String classroomId,
+            String studentUid,
+            Callback<List<AttendanceRecord>> callback
+    ) {
+
         return db.collection(Constants.COLLECTION_ATTENDANCE_RECORDS)
                 .whereEqualTo("classroomId", classroomId)
                 .whereEqualTo("studentUid", studentUid)
                 .addSnapshotListener((snapshots, error) -> {
+
                     if (error != null) {
                         callback.onError(error.getMessage());
                         return;
                     }
+
                     List<AttendanceRecord> list = new ArrayList<>();
+
                     if (snapshots != null) {
                         for (var doc : snapshots.getDocuments()) {
-                            AttendanceRecord r = doc.toObject(AttendanceRecord.class);
-                            if (r != null) list.add(r);
+
+                            AttendanceRecord record =
+                                    doc.toObject(AttendanceRecord.class);
+
+                            if (record != null) {
+                                list.add(record);
+                            }
                         }
                     }
+
                     callback.onSuccess(list);
                 });
     }
 
-    public void calculateStudentStats(String classroomId, String studentUid, Callback<AttendanceStats> callback) {
+    // Calculate individual student attendance statistics
+    public void calculateStudentStats(
+            String classroomId,
+            String studentUid,
+            Callback<AttendanceStats> callback
+    ) {
+
         db.collection(Constants.COLLECTION_ATTENDANCE_RECORDS)
                 .whereEqualTo("classroomId", classroomId)
                 .whereEqualTo("studentUid", studentUid)
                 .get()
                 .addOnSuccessListener(snaps -> {
+
                     AttendanceStats stats = new AttendanceStats();
+
                     if (snaps != null) {
+
                         for (var doc : snaps.getDocuments()) {
-                            AttendanceRecord r = doc.toObject(AttendanceRecord.class);
-                            if (r != null) {
+
+                            AttendanceRecord record =
+                                    doc.toObject(AttendanceRecord.class);
+
+                            if (record != null) {
+
                                 stats.totalConducted++;
-                                if (Constants.STATUS_PRESENT.equalsIgnoreCase(r.getStatus())) {
+
+                                if (Constants.STATUS_PRESENT.equalsIgnoreCase(
+                                        record.getStatus())) {
+
                                     stats.totalPresent++;
-                                } else if (Constants.STATUS_LATE.equalsIgnoreCase(r.getStatus())) {
+
+                                } else if (Constants.STATUS_LATE.equalsIgnoreCase(
+                                        record.getStatus())) {
+
                                     stats.totalLate++;
+
                                 } else {
                                     stats.totalAbsent++;
                                 }
                             }
                         }
                     }
+
                     if (stats.totalConducted > 0) {
-                        stats.percentage = ((double) stats.totalPresent / stats.totalConducted) * 100.0;
+
+                        stats.percentage =
+                                ((double) stats.totalPresent /
+                                        stats.totalConducted) * 100.0;
+
                     } else {
                         stats.percentage = 0.0;
                     }
+
                     callback.onSuccess(stats);
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e ->
+                        callback.onError(e.getMessage()));
     }
 }

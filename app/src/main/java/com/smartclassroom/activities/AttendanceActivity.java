@@ -5,6 +5,7 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import java.util.TreeSet;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -90,9 +91,6 @@ public class AttendanceActivity extends AppCompatActivity {
     }
 
     private void setupButtons() {
-        binding.btnMarkAllPresent.setOnClickListener(v -> adapter.markAll(Constants.STATUS_PRESENT));
-        binding.btnMarkAllAbsent.setOnClickListener(v -> adapter.markAll(Constants.STATUS_ABSENT));
-
         binding.btnViewHistory.setOnClickListener(v -> {
             Intent intent = new Intent(AttendanceActivity.this, AttendanceHistoryActivity.class);
             intent.putExtra(Constants.EXTRA_CLASSROOM_ID, classroomId);
@@ -105,58 +103,146 @@ public class AttendanceActivity extends AppCompatActivity {
         binding.btnSubmitAttendance.setOnClickListener(v -> showSubmitConfirmDialog());
     }
 
+
     private void loadStudentsAndSessions() {
-        if (classroomId == null) return;
 
-        classroomRepo.listenClassroomMembers(classroomId, new ClassroomRepository.Callback<List<ClassroomMember>>() {
-            @Override
-            public void onSuccess(List<ClassroomMember> result) {
-                allMembers.clear();
-                if (result != null) allMembers.addAll(result);
+        if (classroomId == null) {
+            Toast.makeText(this, "Classroom ID missing!", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-                Set<String> set = new HashSet<>();
-                set.add(currentSection);
-                for (ClassroomMember m : allMembers) {
-                    if (m.getSection() != null && !m.getSection().trim().isEmpty()) {
-                        set.add(m.getSection());
-                    }
-                }
-                sectionsList.clear();
-                sectionsList.addAll(set);
-
-                ArrayAdapter<String> spinAdapter = new ArrayAdapter<>(AttendanceActivity.this,
-                        android.R.layout.simple_spinner_item, sectionsList);
-                spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                binding.spinnerAttendanceSection.setAdapter(spinAdapter);
-
-                binding.spinnerAttendanceSection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                        currentSection = sectionsList.get(position);
-                        filterStudentsBySection();
-                    }
+        classroomRepo.listenClassroomMembers(
+                classroomId,
+                new ClassroomRepository.Callback<List<ClassroomMember>>() {
 
                     @Override
-                    public void onNothingSelected(AdapterView<?> parent) {}
+                    public void onSuccess(List<ClassroomMember> result) {
+
+                        allMembers.clear();
+
+                        if (result != null) {
+                            allMembers.addAll(result);
+                        }
+
+                        // Get only sections that actually have students.
+                        Set<String> set = new TreeSet<>(
+                                String.CASE_INSENSITIVE_ORDER
+                        );
+
+                        for (ClassroomMember member : allMembers) {
+
+                            String section = member.getSection();
+
+                            if (section != null && !section.trim().isEmpty()) {
+                                set.add(section.trim());
+                            }
+                        }
+
+                        sectionsList.clear();
+                        sectionsList.addAll(set);
+
+                        if (sectionsList.isEmpty()) {
+
+                            adapter.updateList(new ArrayList<>());
+
+                            Toast.makeText(
+                                    AttendanceActivity.this,
+                                    "No students or sections found!",
+                                    Toast.LENGTH_LONG
+                            ).show();
+
+                            return;
+                        }
+
+                        ArrayAdapter<String> spinAdapter =
+                                new ArrayAdapter<>(
+                                        AttendanceActivity.this,
+                                        android.R.layout.simple_spinner_item,
+                                        sectionsList
+                                );
+
+                        spinAdapter.setDropDownViewResource(
+                                android.R.layout.simple_spinner_dropdown_item
+                        );
+
+                        binding.spinnerAttendanceSection.setAdapter(spinAdapter);
+
+                        int selectedPosition = sectionsList.indexOf(currentSection);
+
+                        if (selectedPosition < 0) {
+                            selectedPosition = 0;
+                        }
+
+                        binding.spinnerAttendanceSection.setSelection(
+                                selectedPosition
+                        );
+
+                        binding.spinnerAttendanceSection.setOnItemSelectedListener(
+                                new AdapterView.OnItemSelectedListener() {
+
+                                    @Override
+                                    public void onItemSelected(
+                                            AdapterView<?> parent,
+                                            View view,
+                                            int position,
+                                            long id) {
+
+                                        currentSection = sectionsList.get(position);
+
+                                        filterStudentsBySection();
+                                    }
+
+                                    @Override
+                                    public void onNothingSelected(AdapterView<?> parent) {
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+
+                        Toast.makeText(
+                                AttendanceActivity.this,
+                                "Error loading students: " + message,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
                 });
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(AttendanceActivity.this, "Error loading students: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
     }
+
+
 
     private void filterStudentsBySection() {
+
         sectionMembers.clear();
-        for (ClassroomMember m : allMembers) {
-            if (currentSection.equalsIgnoreCase(m.getSection()) || m.getSection() == null) {
-                sectionMembers.add(m);
+
+        for (ClassroomMember member : allMembers) {
+
+            String section = member.getSection();
+
+            if (section != null &&
+                    section.trim().equalsIgnoreCase(currentSection.trim())) {
+
+                sectionMembers.add(member);
             }
         }
+
+        sectionMembers.sort((a, b) -> {
+
+            String rollA = a.getRollNumber() == null
+                    ? ""
+                    : a.getRollNumber();
+
+            String rollB = b.getRollNumber() == null
+                    ? ""
+                    : b.getRollNumber();
+
+            return rollA.compareToIgnoreCase(rollB);
+        });
+
         adapter.updateList(sectionMembers);
     }
+
 
     private void showSubmitConfirmDialog() {
         String classNumStr = binding.etClassNumber.getText() != null ? binding.etClassNumber.getText().toString().trim() : "";

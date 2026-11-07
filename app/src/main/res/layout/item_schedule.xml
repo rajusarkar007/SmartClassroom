@@ -60,6 +60,7 @@
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="3dp"
                 android:visibility="gone" />
+
         </LinearLayout>
 
         <LinearLayout
@@ -85,6 +86,7 @@
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/secondary" />
+
         </LinearLayout>
 
         <LinearLayout
@@ -103,16 +105,48 @@
                 android:textSize="11sp"
                 android:textColor="@color/text_secondary" />
 
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:layout_marginTop="10dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEditSchedule"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Edit"
+                android:textSize="11sp"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeleteSchedule"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Delete"
+                android:textSize="11sp"
+                android:textColor="@color/danger"
+                android:visibility="gone"
+                app:strokeColor="@color/danger" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancelToggle"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
+                android:layout_marginStart="6dp"
                 android:text="Cancel Class"
                 android:textSize="11sp"
                 android:visibility="gone"
                 app:strokeColor="@color/danger"
                 android:textColor="@color/danger" />
+
         </LinearLayout>
 
     </LinearLayout>

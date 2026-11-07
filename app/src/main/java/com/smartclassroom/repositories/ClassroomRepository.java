@@ -1,29 +1,49 @@
+
 package com.smartclassroom.repositories;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
-import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.WriteBatch;
+
 import com.smartclassroom.models.Classroom;
 import com.smartclassroom.models.ClassroomMember;
 import com.smartclassroom.models.JoinRequest;
-import com.smartclassroom.utils.Constants;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ClassroomRepository {
-    private static ClassroomRepository instance;
-    private final FirebaseFirestore db;
 
-    public interface Callback<T> {
-        void onSuccess(T result);
-        void onError(String message);
-    }
+    private static ClassroomRepository instance;
+
+    private final FirebaseFirestore db;
+    private final FirebaseAuth auth;
+
+    private static final String CLASSROOMS = "classrooms";
+    private static final String MEMBERS = "classroom_members";
+    private static final String JOIN_REQUESTS = "join_requests";
+    private static final String CLASSROOM_LOOKUP = "classroom_lookup";
+
+    // Personal notes are intentionally excluded.
+    private static final String[] DELETE_COLLECTIONS = {
+            MEMBERS,
+            JOIN_REQUESTS,
+            "attendance_sessions",
+            "attendance_records",
+            "assessments",
+            "student_marks",
+            "class_schedules",
+            "notices"
+    };
 
     private ClassroomRepository() {
         db = FirebaseFirestore.getInstance();
+        auth = FirebaseAuth.getInstance();
     }
 
     public static synchronized ClassroomRepository getInstance() {
@@ -33,224 +53,942 @@ public class ClassroomRepository {
         return instance;
     }
 
-    public void createClassroom(Classroom classroom, Callback<Classroom> callback) {
-        DocumentReference docRef = db.collection(Constants.COLLECTION_CLASSROOMS).document();
-        classroom.setClassroomId(docRef.getId());
+    public interface Callback<T> {
+        void onSuccess(T result);
+        void onError(String message);
+    }
+
+    private String getCurrentUid() {
+        if (auth.getCurrentUser() == null) {
+            return null;
+        }
+
+        return auth.getCurrentUser().getUid();
+    }
+
+    private void sendError(Callback<?> callback, String message) {
+        if (callback != null) {
+            callback.onError(
+                    message == null ? "Something went wrong." : message
+            );
+        }
+    }
+
+    private String getMemberDocumentId(
+            String classroomId,
+            String studentUid
+    ) {
+        return classroomId + "_" + studentUid;
+    }
+
+    // --------------------------------------------------
+    // CREATE CLASSROOM
+    // --------------------------------------------------
+
+    public void createClassroom(
+            Classroom classroom,
+            Callback<Classroom> callback
+    ) {
+        String uid = getCurrentUid();
+
+        if (uid == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (classroom == null) {
+            sendError(callback, "Classroom cannot be empty.");
+            return;
+        }
+
+        DocumentReference classroomRef =
+                db.collection(CLASSROOMS).document();
+
+        String classroomId = classroomRef.getId();
+
+        classroom.setClassroomId(classroomId);
+        classroom.setTeacherId(uid);
         classroom.setCreatedAt(System.currentTimeMillis());
 
-        docRef.set(classroom)
-                .addOnSuccessListener(unused -> callback.onSuccess(classroom))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+        if (classroom.getClassroomCode() != null) {
+            classroom.setClassroomCode(
+                    classroom.getClassroomCode().trim().toUpperCase()
+            );
+        }
+
+        Map<String, Object> lookupData = new HashMap<>();
+
+        lookupData.put("classroomId", classroomId);
+        lookupData.put("classroomCode", classroom.getClassroomCode());
+        lookupData.put("classroomName", classroom.getClassroomName());
+        lookupData.put("courseName", classroom.getCourseName());
+        lookupData.put("courseCode", classroom.getCourseCode());
+        lookupData.put("department", classroom.getDepartment());
+        lookupData.put("semester", classroom.getSemester());
+        lookupData.put("section", classroom.getSection());
+        lookupData.put("teacherName", classroom.getTeacherName());
+        lookupData.put("teacherId", uid);
+
+        WriteBatch batch = db.batch();
+
+        batch.set(classroomRef, classroom);
+
+        DocumentReference lookupRef =
+                db.collection(CLASSROOM_LOOKUP).document(classroomId);
+
+        batch.set(lookupRef, lookupData);
+
+        batch.commit()
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess(classroom);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public void getClassroomById(String classroomId, Callback<Classroom> callback) {
-        db.collection(Constants.COLLECTION_CLASSROOMS)
+    // --------------------------------------------------
+    // GET CLASSROOM BY ID
+    // --------------------------------------------------
+
+    public void getClassroomById(
+            String classroomId,
+            Callback<Classroom> callback
+    ) {
+        if (classroomId == null || classroomId.trim().isEmpty()) {
+            sendError(callback, "Invalid classroom ID.");
+            return;
+        }
+
+        db.collection(CLASSROOMS)
                 .document(classroomId)
                 .get()
-                .addOnSuccessListener(doc -> {
-                    if (doc != null && doc.exists()) {
-                        Classroom c = doc.toObject(Classroom.class);
-                        callback.onSuccess(c);
-                    } else {
-                        callback.onError("Classroom not found");
+                .addOnSuccessListener(document -> {
+
+                    if (!document.exists()) {
+                        sendError(callback, "Classroom not found.");
+                        return;
+                    }
+
+                    Classroom classroom =
+                            document.toObject(Classroom.class);
+
+                    if (classroom == null) {
+                        sendError(callback, "Unable to load classroom.");
+                        return;
+                    }
+
+                    classroom.setClassroomId(document.getId());
+
+                    if (callback != null) {
+                        callback.onSuccess(classroom);
                     }
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public void getClassroomByCode(String code, Callback<Classroom> callback) {
-        db.collection(Constants.COLLECTION_CLASSROOMS)
-                .whereEqualTo("classroomCode", code.trim().toUpperCase())
+    // --------------------------------------------------
+    // GET CLASSROOM BY CODE
+    // --------------------------------------------------
+
+    public void getClassroomByCode(
+            String code,
+            Callback<Classroom> callback
+    ) {
+        if (code == null || code.trim().isEmpty()) {
+            sendError(callback, "Enter a valid classroom code.");
+            return;
+        }
+
+        String normalizedCode = code.trim().toUpperCase();
+
+        db.collection(CLASSROOM_LOOKUP)
+                .whereEqualTo("classroomCode", normalizedCode)
                 .limit(1)
                 .get()
-                .addOnSuccessListener(snapshots -> {
-                    if (snapshots != null && !snapshots.isEmpty()) {
-                        Classroom c = snapshots.getDocuments().get(0).toObject(Classroom.class);
-                        callback.onSuccess(c);
-                    } else {
-                        callback.onError("No classroom found with code: " + code);
+                .addOnSuccessListener(snapshot -> {
+
+                    if (snapshot.isEmpty()) {
+                        sendError(callback, "No classroom found.");
+                        return;
+                    }
+
+                    DocumentSnapshot document =
+                            snapshot.getDocuments().get(0);
+
+                    Classroom classroom = new Classroom();
+
+                    classroom.setClassroomId(
+                            document.getString("classroomId")
+                    );
+
+                    classroom.setClassroomCode(
+                            document.getString("classroomCode")
+                    );
+
+                    classroom.setClassroomName(
+                            document.getString("classroomName")
+                    );
+
+                    classroom.setCourseName(
+                            document.getString("courseName")
+                    );
+
+                    classroom.setCourseCode(
+                            document.getString("courseCode")
+                    );
+
+                    classroom.setDepartment(
+                            document.getString("department")
+                    );
+
+                    classroom.setSemester(
+                            document.getString("semester")
+                    );
+
+                    classroom.setSection(
+                            document.getString("section")
+                    );
+
+                    classroom.setTeacherName(
+                            document.getString("teacherName")
+                    );
+
+                    classroom.setTeacherId(
+                            document.getString("teacherId")
+                    );
+
+                    if (callback != null) {
+                        callback.onSuccess(classroom);
                     }
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public ListenerRegistration listenTeacherClassrooms(String teacherId, Callback<List<Classroom>> callback) {
-        return db.collection(Constants.COLLECTION_CLASSROOMS)
+    // --------------------------------------------------
+    // LIST TEACHER CLASSROOMS
+    // --------------------------------------------------
+
+    public ListenerRegistration listenTeacherClassrooms(
+            String teacherId,
+            Callback<List<Classroom>> callback
+    ) {
+        return db.collection(CLASSROOMS)
                 .whereEqualTo("teacherId", teacherId)
-                .addSnapshotListener((snapshots, error) -> {
+                .addSnapshotListener((snapshot, error) -> {
+
                     if (error != null) {
-                        callback.onError(error.getMessage());
+                        sendError(callback, error.getMessage());
                         return;
                     }
+
                     List<Classroom> list = new ArrayList<>();
-                    if (snapshots != null) {
-                        for (var doc : snapshots.getDocuments()) {
-                            Classroom c = doc.toObject(Classroom.class);
-                            if (c != null) list.add(c);
+
+                    if (snapshot != null) {
+                        for (DocumentSnapshot document :
+                                snapshot.getDocuments()) {
+
+                            Classroom classroom =
+                                    document.toObject(Classroom.class);
+
+                            if (classroom != null) {
+                                classroom.setClassroomId(document.getId());
+                                list.add(classroom);
+                            }
                         }
                     }
-                    callback.onSuccess(list);
+
+                    if (callback != null) {
+                        callback.onSuccess(list);
+                    }
                 });
     }
 
-    public ListenerRegistration listenStudentMemberships(String studentUid, Callback<List<ClassroomMember>> callback) {
-        return db.collection(Constants.COLLECTION_MEMBERS)
+    // --------------------------------------------------
+    // LIST STUDENT MEMBERSHIPS
+    // --------------------------------------------------
+
+    public ListenerRegistration listenStudentMemberships(
+            String studentUid,
+            Callback<List<ClassroomMember>> callback
+    ) {
+        return db.collection(MEMBERS)
                 .whereEqualTo("studentUid", studentUid)
-                .addSnapshotListener((snapshots, error) -> {
+                .addSnapshotListener((snapshot, error) -> {
+
                     if (error != null) {
-                        callback.onError(error.getMessage());
+                        sendError(callback, error.getMessage());
                         return;
                     }
+
                     List<ClassroomMember> list = new ArrayList<>();
-                    if (snapshots != null) {
-                        for (var doc : snapshots.getDocuments()) {
-                            ClassroomMember m = doc.toObject(ClassroomMember.class);
-                            if (m != null) list.add(m);
+
+                    if (snapshot != null) {
+                        for (DocumentSnapshot document :
+                                snapshot.getDocuments()) {
+
+                            ClassroomMember member =
+                                    document.toObject(ClassroomMember.class);
+
+                            if (member != null) {
+                                member.setMemberId(document.getId());
+                                list.add(member);
+                            }
                         }
                     }
-                    callback.onSuccess(list);
+
+                    if (callback != null) {
+                        callback.onSuccess(list);
+                    }
                 });
     }
 
-    public void requestToJoinClassroom(JoinRequest request, Callback<Void> callback) {
-        // First check if already member
-        db.collection(Constants.COLLECTION_MEMBERS)
-                .whereEqualTo("classroomId", request.getClassroomId())
-                .whereEqualTo("studentUid", request.getStudentUid())
-                .limit(1)
-                .get()
-                .addOnSuccessListener(memberSnaps -> {
-                    if (memberSnaps != null && !memberSnaps.isEmpty()) {
-                        callback.onError("You are already a member of this classroom.");
+    // --------------------------------------------------
+    // REQUEST TO JOIN CLASSROOM
+    // --------------------------------------------------
+
+    public void requestToJoinClassroom(
+            JoinRequest request,
+            Callback<Void> callback
+    ) {
+        String uid = getCurrentUid();
+
+        if (uid == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (request == null ||
+                request.getClassroomId() == null ||
+                request.getClassroomId().trim().isEmpty()) {
+
+            sendError(callback, "Invalid join request.");
+            return;
+        }
+
+        String classroomId = request.getClassroomId();
+        request.setStudentUid(uid);
+
+        String memberId = getMemberDocumentId(classroomId, uid);
+
+        DocumentReference memberRef =
+                db.collection(MEMBERS).document(memberId);
+
+        memberRef.get()
+                .addOnSuccessListener(memberDocument -> {
+
+                    if (memberDocument.exists()) {
+                        sendError(callback, "You are already a member.");
                         return;
                     }
 
-                    // Check if already requested and pending
-                    db.collection(Constants.COLLECTION_JOIN_REQUESTS)
-                            .whereEqualTo("classroomId", request.getClassroomId())
-                            .whereEqualTo("studentUid", request.getStudentUid())
-                            .whereEqualTo("status", Constants.REQ_PENDING)
+                    db.collection(JOIN_REQUESTS)
+                            .whereEqualTo("classroomId", classroomId)
+                            .whereEqualTo("studentUid", uid)
+                            .whereEqualTo("status", "PENDING")
                             .limit(1)
                             .get()
-                            .addOnSuccessListener(reqSnaps -> {
-                                if (reqSnaps != null && !reqSnaps.isEmpty()) {
-                                    callback.onError("You have already submitted a join request. Please wait for approval.");
+                            .addOnSuccessListener(snapshot -> {
+
+                                if (!snapshot.isEmpty()) {
+                                    sendError(
+                                            callback,
+                                            "You already have a pending request."
+                                    );
                                     return;
                                 }
 
-                                DocumentReference doc = db.collection(Constants.COLLECTION_JOIN_REQUESTS).document();
-                                request.setRequestId(doc.getId());
-                                request.setStatus(Constants.REQ_PENDING);
-                                request.setRequestedAt(System.currentTimeMillis());
+                                DocumentReference requestRef =
+                                        db.collection(JOIN_REQUESTS).document();
 
-                                doc.set(request)
-                                        .addOnSuccessListener(unused -> callback.onSuccess(null))
-                                        .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                                request.setRequestId(requestRef.getId());
+                                request.setStatus("PENDING");
+                                request.setRequestedAt(
+                                        System.currentTimeMillis()
+                                );
+
+                                requestRef.set(request)
+                                        .addOnSuccessListener(unused -> {
+                                            if (callback != null) {
+                                                callback.onSuccess(null);
+                                            }
+                                        })
+                                        .addOnFailureListener(e ->
+                                                sendError(callback, e.getMessage()));
                             })
-                            .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                            .addOnFailureListener(e ->
+                                    sendError(callback, e.getMessage()));
                 })
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public ListenerRegistration listenPendingJoinRequests(String teacherId, Callback<List<JoinRequest>> callback) {
-        return db.collection(Constants.COLLECTION_JOIN_REQUESTS)
+    // --------------------------------------------------
+    // LIST PENDING JOIN REQUESTS
+    // --------------------------------------------------
+
+    public ListenerRegistration listenPendingJoinRequests(
+            String teacherId,
+            Callback<List<JoinRequest>> callback
+    ) {
+        return db.collection(JOIN_REQUESTS)
                 .whereEqualTo("teacherId", teacherId)
-                .whereEqualTo("status", Constants.REQ_PENDING)
-                .addSnapshotListener((snapshots, error) -> {
+                .whereEqualTo("status", "PENDING")
+                .addSnapshotListener((snapshot, error) -> {
+
                     if (error != null) {
-                        callback.onError(error.getMessage());
+                        sendError(callback, error.getMessage());
                         return;
                     }
+
                     List<JoinRequest> list = new ArrayList<>();
-                    if (snapshots != null) {
-                        for (var doc : snapshots.getDocuments()) {
-                            JoinRequest r = doc.toObject(JoinRequest.class);
-                            if (r != null) list.add(r);
+
+                    if (snapshot != null) {
+                        for (DocumentSnapshot document :
+                                snapshot.getDocuments()) {
+
+                            JoinRequest request =
+                                    document.toObject(JoinRequest.class);
+
+                            if (request != null) {
+                                request.setRequestId(document.getId());
+                                list.add(request);
+                            }
                         }
                     }
-                    callback.onSuccess(list);
+
+                    if (callback != null) {
+                        callback.onSuccess(list);
+                    }
                 });
     }
 
-    public void respondToJoinRequest(JoinRequest request, boolean approve, String rollNumber, String section, Callback<Void> callback) {
-        WriteBatch batch = db.batch();
-        DocumentReference reqRef = db.collection(Constants.COLLECTION_JOIN_REQUESTS).document(request.getRequestId());
+    // --------------------------------------------------
+    // RESPOND TO JOIN REQUEST
+    // --------------------------------------------------
 
-        if (approve) {
-            batch.update(reqRef, "status", Constants.REQ_APPROVED);
-            DocumentReference memberRef = db.collection(Constants.COLLECTION_MEMBERS).document();
-            String sec = (section != null && !section.trim().isEmpty()) ? section : request.getRequestedSection();
-            ClassroomMember member = new ClassroomMember(
-                    memberRef.getId(),
-                    request.getClassroomId(),
-                    request.getStudentUid(),
-                    request.getStudentName(),
-                    request.getStudentIdNumber(),
-                    rollNumber,
-                    sec,
-                    false,
-                    System.currentTimeMillis()
-            );
-            batch.set(memberRef, member);
-        } else {
-            batch.update(reqRef, "status", Constants.REQ_REJECTED);
+    public void respondToJoinRequest(
+            JoinRequest request,
+            boolean approved,
+            String rollNumber,
+            String section,
+            Callback<Void> callback
+    ) {
+        String uid = getCurrentUid();
+
+        if (uid == null) {
+            sendError(callback, "Please login first.");
+            return;
         }
 
-        batch.commit()
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
-    }
+        if (request == null ||
+                request.getRequestId() == null ||
+                request.getClassroomId() == null ||
+                request.getStudentUid() == null) {
 
-    public ListenerRegistration listenClassroomMembers(String classroomId, Callback<List<ClassroomMember>> callback) {
-        return db.collection(Constants.COLLECTION_MEMBERS)
-                .whereEqualTo("classroomId", classroomId)
-                .addSnapshotListener((snapshots, error) -> {
-                    if (error != null) {
-                        callback.onError(error.getMessage());
+            sendError(callback, "Invalid join request.");
+            return;
+        }
+
+        String classroomId = request.getClassroomId();
+        String studentUid = request.getStudentUid();
+
+        DocumentReference requestRef =
+                db.collection(JOIN_REQUESTS)
+                        .document(request.getRequestId());
+
+        DocumentReference classroomRef =
+                db.collection(CLASSROOMS).document(classroomId);
+
+        DocumentReference memberRef =
+                db.collection(MEMBERS)
+                        .document(getMemberDocumentId(classroomId, studentUid));
+
+        requestRef.get()
+                .addOnSuccessListener(requestDocument -> {
+
+                    if (!requestDocument.exists()) {
+                        sendError(callback, "Join request not found.");
                         return;
                     }
+
+                    if (!"PENDING".equals(
+                            requestDocument.getString("status"))) {
+
+                        sendError(
+                                callback,
+                                "This request has already been processed."
+                        );
+                        return;
+                    }
+
+                    classroomRef.get()
+                            .addOnSuccessListener(classroomDocument -> {
+
+                                if (!classroomDocument.exists()) {
+                                    sendError(callback, "Classroom not found.");
+                                    return;
+                                }
+
+                                String ownerId =
+                                        classroomDocument.getString("teacherId");
+
+                                if (!uid.equals(ownerId)) {
+                                    sendError(
+                                            callback,
+                                            "Only the classroom teacher can respond."
+                                    );
+                                    return;
+                                }
+
+                                memberRef.get()
+                                        .addOnSuccessListener(memberDocument -> {
+
+                                            if (approved && memberDocument.exists()) {
+                                                sendError(
+                                                        callback,
+                                                        "Student is already a member."
+                                                );
+                                                return;
+                                            }
+
+                                            WriteBatch batch = db.batch();
+
+                                            batch.update(
+                                                    requestRef,
+                                                    "status",
+                                                    approved ? "APPROVED" : "REJECTED"
+                                            );
+
+                                            if (approved) {
+
+                                                ClassroomMember member =
+                                                        new ClassroomMember();
+
+                                                member.setMemberId(memberRef.getId());
+                                                member.setClassroomId(classroomId);
+                                                member.setStudentUid(studentUid);
+
+                                                member.setStudentName(
+                                                        requestDocument.getString("studentName")
+                                                );
+
+                                                member.setStudentIdNumber(
+                                                        requestDocument.getString("studentIdNumber")
+                                                );
+
+                                                member.setRollNumber(rollNumber);
+                                                member.setSection(section);
+                                                member.setClassRepresentative(false);
+
+                                                member.setJoinedAt(
+                                                        System.currentTimeMillis()
+                                                );
+
+                                                batch.set(memberRef, member);
+                                            }
+
+                                            batch.commit()
+                                                    .addOnSuccessListener(unused -> {
+                                                        if (callback != null) {
+                                                            callback.onSuccess(null);
+                                                        }
+                                                    })
+                                                    .addOnFailureListener(e ->
+                                                            sendError(callback, e.getMessage()));
+                                        })
+                                        .addOnFailureListener(e ->
+                                                sendError(callback, e.getMessage()));
+                            })
+                            .addOnFailureListener(e ->
+                                    sendError(callback, e.getMessage()));
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
+    }
+
+    // --------------------------------------------------
+    // LIST CLASSROOM MEMBERS
+    // --------------------------------------------------
+
+    public ListenerRegistration listenClassroomMembers(
+            String classroomId,
+            Callback<List<ClassroomMember>> callback
+    ) {
+        return db.collection(MEMBERS)
+                .whereEqualTo("classroomId", classroomId)
+                .addSnapshotListener((snapshot, error) -> {
+
+                    if (error != null) {
+                        sendError(callback, error.getMessage());
+                        return;
+                    }
+
                     List<ClassroomMember> list = new ArrayList<>();
-                    if (snapshots != null) {
-                        for (var doc : snapshots.getDocuments()) {
-                            ClassroomMember m = doc.toObject(ClassroomMember.class);
-                            if (m != null) list.add(m);
+
+                    if (snapshot != null) {
+                        for (DocumentSnapshot document :
+                                snapshot.getDocuments()) {
+
+                            ClassroomMember member =
+                                    document.toObject(ClassroomMember.class);
+
+                            if (member != null) {
+                                member.setMemberId(document.getId());
+                                list.add(member);
+                            }
                         }
                     }
-                    callback.onSuccess(list);
+
+                    if (callback != null) {
+                        callback.onSuccess(list);
+                    }
                 });
     }
 
-    public void addStudentManually(ClassroomMember member, Callback<Void> callback) {
-        DocumentReference doc = db.collection(Constants.COLLECTION_MEMBERS).document();
-        member.setMemberId(doc.getId());
-        member.setJoinedAt(System.currentTimeMillis());
+    // --------------------------------------------------
+    // ADD STUDENT MANUALLY
+    // --------------------------------------------------
 
-        doc.set(member)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+    public void addStudentManually(
+            ClassroomMember member,
+            Callback<Void> callback
+    ) {
+        String uid = getCurrentUid();
+
+        if (uid == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (member == null ||
+                member.getClassroomId() == null ||
+                member.getStudentUid() == null) {
+
+            sendError(callback, "Invalid student information.");
+            return;
+        }
+
+        String memberId = getMemberDocumentId(
+                member.getClassroomId(),
+                member.getStudentUid()
+        );
+
+        DocumentReference memberRef =
+                db.collection(MEMBERS).document(memberId);
+
+        memberRef.get()
+                .addOnSuccessListener(document -> {
+
+                    if (document.exists()) {
+                        sendError(
+                                callback,
+                                "Student is already in this classroom."
+                        );
+                        return;
+                    }
+
+                    member.setMemberId(memberId);
+
+                    if (member.getJoinedAt() == 0) {
+                        member.setJoinedAt(System.currentTimeMillis());
+                    }
+
+                    memberRef.set(member)
+                            .addOnSuccessListener(unused -> {
+                                if (callback != null) {
+                                    callback.onSuccess(null);
+                                }
+                            })
+                            .addOnFailureListener(e ->
+                                    sendError(callback, e.getMessage()));
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public void updateStudentMember(ClassroomMember member, Callback<Void> callback) {
-        db.collection(Constants.COLLECTION_MEMBERS)
-                .document(member.getMemberId())
+    // --------------------------------------------------
+    // UPDATE STUDENT MEMBER
+    // --------------------------------------------------
+
+    public void updateStudentMember(
+            ClassroomMember member,
+            Callback<Void> callback
+    ) {
+        if (getCurrentUid() == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (member == null ||
+                member.getClassroomId() == null ||
+                member.getStudentUid() == null) {
+
+            sendError(callback, "Invalid member information.");
+            return;
+        }
+
+        String memberId = getMemberDocumentId(
+                member.getClassroomId(),
+                member.getStudentUid()
+        );
+
+        member.setMemberId(memberId);
+
+        db.collection(MEMBERS)
+                .document(memberId)
                 .set(member)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public void removeStudentMember(String memberId, Callback<Void> callback) {
-        db.collection(Constants.COLLECTION_MEMBERS)
+    // --------------------------------------------------
+    // REMOVE STUDENT MEMBER
+    // --------------------------------------------------
+
+    public void removeStudentMember(
+            String memberId,
+            Callback<Void> callback
+    ) {
+        if (getCurrentUid() == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (memberId == null || memberId.trim().isEmpty()) {
+            sendError(callback, "Invalid member ID.");
+            return;
+        }
+
+        db.collection(MEMBERS)
                 .document(memberId)
                 .delete()
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
     }
 
-    public void setRepresentativeStatus(String memberId, boolean isCR, Callback<Void> callback) {
-        db.collection(Constants.COLLECTION_MEMBERS)
+    // --------------------------------------------------
+    // SET REPRESENTATIVE STATUS
+    // --------------------------------------------------
+
+    public void setRepresentativeStatus(
+            String memberId,
+            boolean isRepresentative,
+            Callback<Void> callback
+    ) {
+        if (getCurrentUid() == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (memberId == null || memberId.trim().isEmpty()) {
+            sendError(callback, "Invalid member ID.");
+            return;
+        }
+
+        db.collection(MEMBERS)
                 .document(memberId)
-                .update("classRepresentative", isCR)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(e -> callback.onError(e.getMessage()));
+                .update("classRepresentative", isRepresentative)
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(e ->
+                        sendError(callback, e.getMessage()));
+    }
+
+    // --------------------------------------------------
+    // DELETE CLASSROOM AND ASSOCIATED DATA
+    // --------------------------------------------------
+
+    public void deleteClassroom(
+            String classroomId,
+            Callback<Void> callback
+    ) {
+        String uid = getCurrentUid();
+
+        if (uid == null) {
+            sendError(callback, "Please login first.");
+            return;
+        }
+
+        if (classroomId == null || classroomId.trim().isEmpty()) {
+            sendError(callback, "Invalid classroom ID.");
+            return;
+        }
+
+        String id = classroomId.trim();
+
+        DocumentReference classroomRef =
+                db.collection(CLASSROOMS).document(id);
+
+        classroomRef.get()
+                .addOnSuccessListener(classroomDocument -> {
+
+                    if (!classroomDocument.exists()) {
+                        sendError(callback, "Classroom not found.");
+                        return;
+                    }
+
+                    String ownerId =
+                            classroomDocument.getString("teacherId");
+
+                    if (!uid.equals(ownerId)) {
+                        sendError(
+                                callback,
+                                "You can only delete your own classroom."
+                        );
+                        return;
+                    }
+
+                    deleteNextCollection(0, id, callback);
+                })
+                .addOnFailureListener(error ->
+                        sendError(callback, error.getMessage()));
+    }
+
+    private void deleteNextCollection(
+            int index,
+            String classroomId,
+            Callback<Void> callback
+    ) {
+        if (index >= DELETE_COLLECTIONS.length) {
+            deleteClassroomLookup(classroomId, callback);
+            return;
+        }
+
+        String collectionName = DELETE_COLLECTIONS[index];
+
+        deleteCollectionDocuments(
+                collectionName,
+                classroomId,
+                () -> deleteNextCollection(
+                        index + 1,
+                        classroomId,
+                        callback
+                ),
+                callback
+        );
+    }
+
+    private void deleteCollectionDocuments(
+            String collectionName,
+            String classroomId,
+            Runnable onComplete,
+            Callback<Void> callback
+    ) {
+        db.collection(collectionName)
+                .whereEqualTo("classroomId", classroomId)
+                .limit(400)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+
+                    if (snapshot.isEmpty()) {
+                        onComplete.run();
+                        return;
+                    }
+
+                    WriteBatch batch = db.batch();
+
+                    for (DocumentSnapshot document :
+                            snapshot.getDocuments()) {
+
+                        batch.delete(document.getReference());
+                    }
+
+                    batch.commit()
+                            .addOnSuccessListener(unused ->
+                                    deleteCollectionDocuments(
+                                            collectionName,
+                                            classroomId,
+                                            onComplete,
+                                            callback
+                                    )
+                            )
+                            .addOnFailureListener(error ->
+                                    sendError(
+                                            callback,
+                                            "Delete failed in "
+                                                    + collectionName
+                                                    + ": "
+                                                    + error.getMessage()
+                                    ));
+                })
+                .addOnFailureListener(error ->
+                        sendError(
+                                callback,
+                                "Unable to read "
+                                        + collectionName
+                                        + ": "
+                                        + error.getMessage()
+                        ));
+    }
+
+    private void deleteClassroomLookup(
+            String classroomId,
+            Callback<Void> callback
+    ) {
+        DocumentReference lookupRef =
+                db.collection(CLASSROOM_LOOKUP)
+                        .document(classroomId);
+
+        lookupRef.get()
+                .addOnSuccessListener(document -> {
+
+                    if (!document.exists()) {
+                        deleteMainClassroom(classroomId, callback);
+                        return;
+                    }
+
+                    lookupRef.delete()
+                            .addOnSuccessListener(unused ->
+                                    deleteMainClassroom(
+                                            classroomId,
+                                            callback
+                                    )
+                            )
+                            .addOnFailureListener(error ->
+                                    sendError(
+                                            callback,
+                                            "Lookup deletion failed: "
+                                                    + error.getMessage()
+                                    ));
+                })
+                .addOnFailureListener(error ->
+                        sendError(callback, error.getMessage()));
+    }
+
+    private void deleteMainClassroom(
+            String classroomId,
+            Callback<Void> callback
+    ) {
+        db.collection(CLASSROOMS)
+                .document(classroomId)
+                .delete()
+                .addOnSuccessListener(unused -> {
+                    if (callback != null) {
+                        callback.onSuccess(null);
+                    }
+                })
+                .addOnFailureListener(error ->
+                        sendError(
+                                callback,
+                                "Classroom deletion failed: "
+                                        + error.getMessage()
+                        ));
     }
 }

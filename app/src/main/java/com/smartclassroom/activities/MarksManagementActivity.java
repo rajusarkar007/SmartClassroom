@@ -10,6 +10,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,12 +29,16 @@ import com.smartclassroom.utils.DateUtils;
 import com.smartclassroom.utils.SessionManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class MarksManagementActivity extends AppCompatActivity {
 
     private ActivityMarksManagementBinding binding;
+
     private MarksRepository marksRepo;
     private ClassroomRepository classroomRepo;
     private SessionManager sessionManager;
@@ -42,8 +47,11 @@ public class MarksManagementActivity extends AppCompatActivity {
     private String classroomId;
     private String currentSection = "All";
     private boolean isTeacher;
+    private boolean membersLoaded = false;
+
     private ListenerRegistration assessmentsListener;
     private ListenerRegistration studentMarksListener;
+    private ListenerRegistration classroomMembersListener;
 
     private final List<Assessment> assessmentsList = new ArrayList<>();
     private final List<ClassroomMember> classroomStudents = new ArrayList<>();
@@ -51,6 +59,7 @@ public class MarksManagementActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         binding = ActivityMarksManagementBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -58,150 +67,422 @@ public class MarksManagementActivity extends AppCompatActivity {
         classroomRepo = ClassroomRepository.getInstance();
         sessionManager = new SessionManager(this);
 
-        classroomId = getIntent().getStringExtra(Constants.EXTRA_CLASSROOM_ID);
-        isTeacher = getIntent().getBooleanExtra(Constants.EXTRA_IS_TEACHER, false);
-        if (getIntent().getStringExtra(Constants.EXTRA_SECTION) != null) {
-            currentSection = getIntent().getStringExtra(Constants.EXTRA_SECTION);
+        classroomId = getIntent().getStringExtra(
+                Constants.EXTRA_CLASSROOM_ID
+        );
+
+        isTeacher = getIntent().getBooleanExtra(
+                Constants.EXTRA_IS_TEACHER,
+                false
+        );
+
+        String passedSection = getIntent().getStringExtra(
+                Constants.EXTRA_SECTION
+        );
+
+        if (!TextUtils.isEmpty(passedSection)) {
+            currentSection = passedSection.trim();
         }
 
         binding.btnBack.setOnClickListener(v -> finish());
-        binding.fabCreateAssessment.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
-        binding.fabCreateAssessment.setOnClickListener(v -> showCreateAssessmentDialog());
+
+        binding.fabCreateAssessment.setVisibility(
+                isTeacher ? View.VISIBLE : View.GONE
+        );
+
+        binding.fabCreateAssessment.setOnClickListener(
+                v -> showCreateAssessmentDialog()
+        );
 
         setupRecyclerView();
-        setupSpinner();
-        loadClassroomMembers();
 
         if (isTeacher) {
             binding.cardStudentTotalMarks.setVisibility(View.GONE);
-            listenAssessments();
+            binding.layoutSectionFilter.setVisibility(View.VISIBLE);
+
+            setupSpinner();
+            loadClassroomMembers();
+
         } else {
             binding.layoutSectionFilter.setVisibility(View.GONE);
             binding.cardStudentTotalMarks.setVisibility(View.VISIBLE);
-            listenAssessments();
+        }
+
+        listenAssessments();
+
+        if (!isTeacher) {
             listenStudentTotalMarks();
         }
     }
 
+    // --------------------------------------------------
+    // ASSESSMENT RECYCLER VIEW
+    // --------------------------------------------------
+
     private void setupRecyclerView() {
-        adapter = new AssessmentAdapter(isTeacher, assessment -> showEnterMarksDialog(assessment));
-        binding.rvAssessments.setLayoutManager(new LinearLayoutManager(this));
+
+        adapter = new AssessmentAdapter(
+                isTeacher,
+                assessment -> {
+                    if (isTeacher) {
+                        showEnterMarksDialog(assessment);
+                    }
+                }
+        );
+
+        binding.rvAssessments.setLayoutManager(
+                new LinearLayoutManager(this)
+        );
+
         binding.rvAssessments.setAdapter(adapter);
     }
 
+    // --------------------------------------------------
+    // SECTION SPINNER
+    // --------------------------------------------------
+
     private void setupSpinner() {
-        List<String> list = new ArrayList<>();
-        list.add("All");
-        list.add("Section A");
-        list.add("Section B");
-        list.add("Section C");
 
-        ArrayAdapter<String> spinAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, list);
-        spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.spinnerMarksSection.setAdapter(spinAdapter);
+        List<String> sections = new ArrayList<>();
+        sections.add("All");
 
-        binding.spinnerMarksSection.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                currentSection = list.get(position);
-                listenAssessments();
-            }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                sections
+        );
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-    }
+        spinnerAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+        );
 
-    private void loadClassroomMembers() {
-        if (classroomId == null) return;
-        classroomRepo.listenClassroomMembers(classroomId, new ClassroomRepository.Callback<List<ClassroomMember>>() {
-            @Override
-            public void onSuccess(List<ClassroomMember> result) {
-                classroomStudents.clear();
-                if (result != null) classroomStudents.addAll(result);
-            }
+        binding.spinnerMarksSection.setAdapter(spinnerAdapter);
 
-            @Override
-            public void onError(String message) {}
-        });
-    }
+        binding.spinnerMarksSection.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
 
-    private void listenAssessments() {
-        if (assessmentsListener != null) assessmentsListener.remove();
-        if (classroomId == null) return;
+                    @Override
+                    public void onItemSelected(
+                            AdapterView<?> parent,
+                            View view,
+                            int position,
+                            long id
+                    ) {
 
-        assessmentsListener = marksRepo.listenAssessments(classroomId, currentSection, new MarksRepository.Callback<List<Assessment>>() {
-            @Override
-            public void onSuccess(List<Assessment> result) {
-                assessmentsList.clear();
-                if (result != null) assessmentsList.addAll(result);
-                adapter.updateList(assessmentsList);
+                        currentSection = String.valueOf(
+                                parent.getItemAtPosition(position)
+                        );
 
-                boolean empty = assessmentsList.isEmpty();
-                binding.layoutEmptyMarks.setVisibility(empty ? View.VISIBLE : View.GONE);
-                binding.rvAssessments.setVisibility(empty ? View.GONE : View.VISIBLE);
-            }
+                        listenAssessments();
+                    }
 
-            @Override
-            public void onError(String message) {
-                Toast.makeText(MarksManagementActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void listenStudentTotalMarks() {
-        if (classroomId == null) return;
-        String uid = sessionManager.getUid();
-
-        studentMarksListener = marksRepo.listenStudentMarks(classroomId, uid, new MarksRepository.Callback<List<StudentMark>>() {
-            @Override
-            public void onSuccess(List<StudentMark> marks) {
-                double obt = 0;
-                double max = 0;
-                if (marks != null) {
-                    for (StudentMark m : marks) {
-                        obt += m.getObtainedMarks();
-                        max += m.getMaxMarks();
+                    @Override
+                    public void onNothingSelected(
+                            AdapterView<?> parent
+                    ) {
                     }
                 }
-                double pct = max > 0 ? (obt / max) * 100.0 : 0.0;
-                binding.tvTotalObtainedAndMax.setText(String.format(Locale.getDefault(), "Obtained: %.1f / %.1f", obt, max));
-                binding.tvTotalPercentage.setText(String.format(Locale.getDefault(), "%.1f%%", pct));
-            }
-
-            @Override
-            public void onError(String message) {}
-        });
+        );
     }
 
+    // --------------------------------------------------
+    // LOAD CLASSROOM STUDENTS AND REAL SECTIONS
+    // --------------------------------------------------
+
+    private void loadClassroomMembers() {
+
+        if (TextUtils.isEmpty(classroomId)) {
+            Toast.makeText(
+                    this,
+                    "Classroom ID not found.",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        if (classroomMembersListener != null) {
+            classroomMembersListener.remove();
+        }
+
+        classroomMembersListener =
+                classroomRepo.listenClassroomMembers(
+                        classroomId,
+                        new ClassroomRepository.Callback<List<ClassroomMember>>() {
+
+                            @Override
+                            public void onSuccess(List<ClassroomMember> result) {
+
+                                classroomStudents.clear();
+
+                                if (result != null) {
+                                    classroomStudents.addAll(result);
+                                }
+
+                                membersLoaded = true;
+
+                                populateSectionSpinner();
+                            }
+
+                            @Override
+                            public void onError(String message) {
+
+                                membersLoaded = false;
+
+                                Toast.makeText(
+                                        MarksManagementActivity.this,
+                                        "Student loading error: " + message,
+                                        Toast.LENGTH_LONG
+                                ).show();
+                            }
+                        }
+                );
+    }
+
+    private void populateSectionSpinner() {
+
+        Set<String> sectionSet = new LinkedHashSet<>();
+
+        for (ClassroomMember student : classroomStudents) {
+
+            String section = student.getSection();
+
+            if (!TextUtils.isEmpty(section)) {
+                sectionSet.add(section.trim());
+            }
+        }
+
+        List<String> sections = new ArrayList<>();
+        sections.add("All");
+
+        List<String> sortedSections = new ArrayList<>(sectionSet);
+
+        Collections.sort(
+                sortedSections,
+                String.CASE_INSENSITIVE_ORDER
+        );
+
+        sections.addAll(sortedSections);
+
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                sections
+        );
+
+        spinnerAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+        );
+
+        binding.spinnerMarksSection.setAdapter(spinnerAdapter);
+
+        int position = sections.indexOf(currentSection);
+
+        if (position < 0) {
+            currentSection = "All";
+            position = 0;
+        }
+
+        binding.spinnerMarksSection.setSelection(position);
+    }
+
+    // --------------------------------------------------
+    // LOAD ASSESSMENTS
+    // --------------------------------------------------
+
+    private void listenAssessments() {
+
+        if (assessmentsListener != null) {
+            assessmentsListener.remove();
+            assessmentsListener = null;
+        }
+
+        if (TextUtils.isEmpty(classroomId)) {
+            return;
+        }
+
+        assessmentsListener = marksRepo.listenAssessments(
+                classroomId,
+                isTeacher ? currentSection : "All",
+                new MarksRepository.Callback<List<Assessment>>() {
+
+                    @Override
+                    public void onSuccess(List<Assessment> result) {
+
+                        assessmentsList.clear();
+
+                        if (result != null) {
+                            assessmentsList.addAll(result);
+                        }
+
+                        adapter.updateList(assessmentsList);
+
+                        boolean empty = assessmentsList.isEmpty();
+
+                        binding.layoutEmptyMarks.setVisibility(
+                                empty ? View.VISIBLE : View.GONE
+                        );
+
+                        binding.rvAssessments.setVisibility(
+                                empty ? View.GONE : View.VISIBLE
+                        );
+                    }
+
+                    @Override
+                    public void onError(String message) {
+
+                        Toast.makeText(
+                                MarksManagementActivity.this,
+                                "Assessment error: " + message,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                }
+        );
+    }
+
+    // --------------------------------------------------
+    // STUDENT TOTAL MARKS
+    // --------------------------------------------------
+
+    private void listenStudentTotalMarks() {
+
+        if (TextUtils.isEmpty(classroomId)) {
+            return;
+        }
+
+        String uid = sessionManager.getUid();
+
+        if (TextUtils.isEmpty(uid)) {
+            return;
+        }
+
+        if (studentMarksListener != null) {
+            studentMarksListener.remove();
+        }
+
+        studentMarksListener = marksRepo.listenStudentMarks(
+                classroomId,
+                uid,
+                new MarksRepository.Callback<List<StudentMark>>() {
+
+                    @Override
+                    public void onSuccess(List<StudentMark> marks) {
+
+                        double obtained = 0;
+                        double maximum = 0;
+
+                        if (marks != null) {
+
+                            for (StudentMark mark : marks) {
+                                obtained += mark.getObtainedMarks();
+                                maximum += mark.getMaxMarks();
+                            }
+                        }
+
+                        double percentage = maximum > 0
+                                ? (obtained / maximum) * 100.0
+                                : 0.0;
+
+                        binding.tvTotalObtainedAndMax.setText(
+                                String.format(
+                                        Locale.getDefault(),
+                                        "Obtained: %.1f / %.1f",
+                                        obtained,
+                                        maximum
+                                )
+                        );
+
+                        binding.tvTotalPercentage.setText(
+                                String.format(
+                                        Locale.getDefault(),
+                                        "%.1f%%",
+                                        percentage
+                                )
+                        );
+                    }
+
+                    @Override
+                    public void onError(String message) {
+
+                        Toast.makeText(
+                                MarksManagementActivity.this,
+                                "Marks error: " + message,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                }
+        );
+    }
+
+    // --------------------------------------------------
+    // CREATE ASSESSMENT
+    // --------------------------------------------------
+
     private void showCreateAssessmentDialog() {
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
         builder.setTitle("Create New Assessment");
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (18 * getResources().getDisplayMetrics().density);
-        layout.setPadding(pad, pad, pad, pad);
+
+        int padding = (int) (
+                18 * getResources().getDisplayMetrics().density
+        );
+
+        layout.setPadding(
+                padding,
+                padding,
+                padding,
+                padding
+        );
 
         EditText etTitle = new EditText(this);
-        etTitle.setHint("Assessment Title (e.g. Class Test 1)");
+        etTitle.setHint("Assessment Title (e.g. CT 1)");
         layout.addView(etTitle);
 
         Spinner spCategory = new Spinner(this);
-        String[] cats = {Constants.CATEGORY_CT, Constants.CATEGORY_ATTENDANCE, Constants.CATEGORY_SPOT_TEST, Constants.CATEGORY_CLASS_PERFORMANCE};
-        ArrayAdapter<String> catAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, cats);
-        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spCategory.setAdapter(catAdapter);
+
+        String[] categories = {
+                Constants.CATEGORY_CT,
+                Constants.CATEGORY_ATTENDANCE,
+                Constants.CATEGORY_SPOT_TEST,
+                Constants.CATEGORY_CLASS_PERFORMANCE
+        };
+
+        ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                categories
+        );
+
+        categoryAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+        );
+
+        spCategory.setAdapter(categoryAdapter);
         layout.addView(spCategory);
 
         EditText etMax = new EditText(this);
         etMax.setHint("Maximum Marks (e.g. 20)");
-        etMax.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+
+        etMax.setInputType(
+                android.text.InputType.TYPE_CLASS_NUMBER
+                        | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        );
+
         layout.addView(etMax);
 
         EditText etSection = new EditText(this);
         etSection.setHint("Section (e.g. Section A)");
-        etSection.setText(!"All".equalsIgnoreCase(currentSection) ? currentSection : "Section A");
+
+        etSection.setText(
+                !"All".equalsIgnoreCase(currentSection)
+                        ? currentSection
+                        : ""
+        );
+
         layout.addView(etSection);
 
         EditText etRemarks = new EditText(this);
@@ -209,97 +490,323 @@ public class MarksManagementActivity extends AppCompatActivity {
         layout.addView(etRemarks);
 
         builder.setView(layout);
+
         builder.setPositiveButton("Create", (dialog, which) -> {
+
             String title = etTitle.getText().toString().trim();
-            String cat = cats[spCategory.getSelectedItemPosition()];
-            String maxStr = etMax.getText().toString().trim();
-            String sec = etSection.getText().toString().trim();
+            String maxText = etMax.getText().toString().trim();
+            String section = etSection.getText().toString().trim();
             String remarks = etRemarks.getText().toString().trim();
 
-            if (TextUtils.isEmpty(title) || TextUtils.isEmpty(maxStr)) {
-                Toast.makeText(this, "Title and Maximum Marks are required", Toast.LENGTH_SHORT).show();
+            String category = categories[
+                    spCategory.getSelectedItemPosition()
+                    ];
+
+            if (TextUtils.isEmpty(title)
+                    || TextUtils.isEmpty(maxText)
+                    || TextUtils.isEmpty(section)) {
+
+                Toast.makeText(
+                        this,
+                        "Title, maximum marks and section are required.",
+                        Toast.LENGTH_LONG
+                ).show();
+
                 return;
             }
 
-            double maxMarks = Double.parseDouble(maxStr);
+            double maxMarks;
 
-            Assessment a = new Assessment();
-            a.setClassroomId(classroomId);
-            a.setTitle(title);
-            a.setCategory(cat);
-            a.setMaxMarks(maxMarks);
-            a.setSection(sec);
-            a.setDate(DateUtils.getCurrentDate());
-            a.setRemarks(remarks);
+            try {
+                maxMarks = Double.parseDouble(maxText);
+            } catch (NumberFormatException e) {
 
-            marksRepo.createAssessment(a, new MarksRepository.Callback<Assessment>() {
-                @Override
-                public void onSuccess(Assessment result) {
-                    Toast.makeText(MarksManagementActivity.this, "Assessment created successfully!", Toast.LENGTH_SHORT).show();
-                }
+                Toast.makeText(
+                        this,
+                        "Enter a valid maximum mark.",
+                        Toast.LENGTH_SHORT
+                ).show();
 
-                @Override
-                public void onError(String message) {
-                    Toast.makeText(MarksManagementActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
-                }
-            });
-        });
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
-    }
+                return;
+            }
 
-    private void showEnterMarksDialog(Assessment assessment) {
-        marksRepo.getMarksForAssessment(assessment.getAssessmentId(), new MarksRepository.Callback<List<StudentMark>>() {
-            @Override
-            public void onSuccess(List<StudentMark> existingMarks) {
-                // Filter classroomStudents for assessment's section
-                List<ClassroomMember> secStudents = new ArrayList<>();
-                for (ClassroomMember s : classroomStudents) {
-                    if (assessment.getSection() == null || "All".equalsIgnoreCase(assessment.getSection()) || assessment.getSection().equalsIgnoreCase(s.getSection())) {
-                        secStudents.add(s);
-                    }
-                }
+            if (maxMarks <= 0) {
 
-                AlertDialog.Builder builder = new AlertDialog.Builder(MarksManagementActivity.this);
-                builder.setTitle("Enter Marks: " + assessment.getTitle());
+                Toast.makeText(
+                        this,
+                        "Maximum marks must be greater than zero.",
+                        Toast.LENGTH_SHORT
+                ).show();
 
-                RecyclerView rv = new RecyclerView(MarksManagementActivity.this);
-                rv.setLayoutManager(new LinearLayoutManager(MarksManagementActivity.this));
-                StudentMarksAdapter markAdapter = new StudentMarksAdapter(
-                        classroomId, assessment.getAssessmentId(), assessment.getSection(), assessment.getMaxMarks());
-                markAdapter.setStudentsAndMarks(secStudents, existingMarks);
-                rv.setAdapter(markAdapter);
+                return;
+            }
 
-                builder.setView(rv);
-                builder.setPositiveButton("Save All Marks", (dialog, which) -> {
-                    List<StudentMark> updated = markAdapter.getUpdatedMarks();
-                    marksRepo.saveStudentMarks(updated, new MarksRepository.Callback<Void>() {
+            Assessment assessment = new Assessment();
+
+            assessment.setClassroomId(classroomId);
+            assessment.setTitle(title);
+            assessment.setCategory(category);
+            assessment.setMaxMarks(maxMarks);
+            assessment.setSection(section);
+            assessment.setDate(DateUtils.getCurrentDate());
+            assessment.setRemarks(remarks);
+
+            marksRepo.createAssessment(
+                    assessment,
+                    new MarksRepository.Callback<Assessment>() {
+
                         @Override
-                        public void onSuccess(Void result) {
-                            Toast.makeText(MarksManagementActivity.this, "Marks saved and updated for students!", Toast.LENGTH_SHORT).show();
+                        public void onSuccess(Assessment result) {
+
+                            Toast.makeText(
+                                    MarksManagementActivity.this,
+                                    "Assessment created successfully!",
+                                    Toast.LENGTH_SHORT
+                            ).show();
                         }
 
                         @Override
                         public void onError(String message) {
-                            Toast.makeText(MarksManagementActivity.this, "Error saving marks: " + message, Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                });
-                builder.setNegativeButton("Cancel", null);
-                builder.show();
-            }
 
-            @Override
-            public void onError(String message) {
-                Toast.makeText(MarksManagementActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
-            }
+                            Toast.makeText(
+                                    MarksManagementActivity.this,
+                                    "Create error: " + message,
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        }
+                    }
+            );
         });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
     }
+
+    // --------------------------------------------------
+    // OPEN MARK INPUT SCREEN
+    // --------------------------------------------------
+
+    private void showEnterMarksDialog(Assessment assessment) {
+
+        if (!membersLoaded) {
+
+            Toast.makeText(
+                    this,
+                    "Students are loading. Please try again.",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (classroomStudents.isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "No students found in this classroom.",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        marksRepo.getMarksForAssessment(
+                classroomId,
+                assessment.getAssessmentId(),
+                new MarksRepository.Callback<List<StudentMark>>() {
+
+                    @Override
+                    public void onSuccess(List<StudentMark> existingMarks) {
+
+                        List<ClassroomMember> sectionStudents =
+                                new ArrayList<>();
+
+                        String assessmentSection = assessment.getSection();
+
+                        for (ClassroomMember student : classroomStudents) {
+
+                            String studentSection = student.getSection();
+
+                            if (TextUtils.isEmpty(assessmentSection)
+                                    || "All".equalsIgnoreCase(assessmentSection)
+                                    || (!TextUtils.isEmpty(studentSection)
+                                    && assessmentSection.trim().equalsIgnoreCase(
+                                    studentSection.trim()
+                            ))) {
+
+                                sectionStudents.add(student);
+                            }
+                        }
+
+                        if (sectionStudents.isEmpty()) {
+
+                            Toast.makeText(
+                                    MarksManagementActivity.this,
+                                    "No students found in section: "
+                                            + assessmentSection,
+                                    Toast.LENGTH_LONG
+                            ).show();
+
+                            return;
+                        }
+
+                        // Only pass marks belonging to this section.
+                        List<StudentMark> sectionMarks = new ArrayList<>();
+
+                        for (StudentMark mark : existingMarks) {
+
+                            for (ClassroomMember student : sectionStudents) {
+
+                                if (student.getStudentUid() != null
+                                        && student.getStudentUid().equals(
+                                        mark.getStudentUid()
+                                )) {
+
+                                    sectionMarks.add(mark);
+                                    break;
+                                }
+                            }
+                        }
+
+                        showMarksEntryDialog(
+                                assessment,
+                                sectionStudents,
+                                sectionMarks
+                        );
+                    }
+
+                    @Override
+                    public void onError(String message) {
+
+                        Toast.makeText(
+                                MarksManagementActivity.this,
+                                "Unable to load marks: " + message,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                }
+        );
+    }
+
+    // --------------------------------------------------
+    // MARKS INPUT DIALOG
+    // --------------------------------------------------
+
+    private void showMarksEntryDialog(
+            Assessment assessment,
+            List<ClassroomMember> students,
+            List<StudentMark> existingMarks
+    ) {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        builder.setTitle(
+                "Enter Marks: " + assessment.getTitle()
+        );
+
+        RecyclerView recyclerView = new RecyclerView(this);
+
+        recyclerView.setLayoutManager(
+                new LinearLayoutManager(this)
+        );
+
+        StudentMarksAdapter marksAdapter = new StudentMarksAdapter(
+                classroomId,
+                assessment.getAssessmentId(),
+                assessment.getSection(),
+                assessment.getMaxMarks()
+        );
+
+        marksAdapter.setStudentsAndMarks(
+                students,
+                existingMarks
+        );
+
+        recyclerView.setAdapter(marksAdapter);
+
+        int padding = (int) (
+                8 * getResources().getDisplayMetrics().density
+        );
+
+        recyclerView.setPadding(
+                padding,
+                padding,
+                padding,
+                padding
+        );
+
+        builder.setView(recyclerView);
+
+        builder.setPositiveButton(
+                "Save All Marks",
+                (dialog, which) -> {
+
+                    List<StudentMark> updatedMarks =
+                            marksAdapter.getUpdatedMarks();
+
+                    if (updatedMarks.isEmpty()) {
+
+                        Toast.makeText(
+                                MarksManagementActivity.this,
+                                "No marks to save.",
+                                Toast.LENGTH_SHORT
+                        ).show();
+
+                        return;
+                    }
+
+                    marksRepo.saveStudentMarks(
+                            updatedMarks,
+                            new MarksRepository.Callback<Void>() {
+
+                                @Override
+                                public void onSuccess(Void result) {
+
+                                    Toast.makeText(
+                                            MarksManagementActivity.this,
+                                            "Marks saved successfully!",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+                                }
+
+                                @Override
+                                public void onError(String message) {
+
+                                    Toast.makeText(
+                                            MarksManagementActivity.this,
+                                            "Save error: " + message,
+                                            Toast.LENGTH_LONG
+                                    ).show();
+                                }
+                            }
+                    );
+                }
+        );
+
+        builder.setNegativeButton("Cancel", null);
+
+        builder.show();
+    }
+
+    // --------------------------------------------------
+    // CLEANUP
+    // --------------------------------------------------
 
     @Override
     protected void onDestroy() {
+
         super.onDestroy();
-        if (assessmentsListener != null) assessmentsListener.remove();
-        if (studentMarksListener != null) studentMarksListener.remove();
+
+        if (assessmentsListener != null) {
+            assessmentsListener.remove();
+        }
+
+        if (studentMarksListener != null) {
+            studentMarksListener.remove();
+        }
+
+        if (classroomMembersListener != null) {
+            classroomMembersListener.remove();
+        }
     }
 }

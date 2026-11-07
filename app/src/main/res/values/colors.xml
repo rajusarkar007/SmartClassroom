@@ -1,33 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#2563EB</color>
-    <color name="primary_dark">#1D4ED8</color>
-    <color name="primary_light">#DBEAFE</color>
-    <color name="secondary">#0F172A</color>
-    <color name="secondary_light">#334155</color>
-    <color name="background">#F8FAFC</color>
+
+    <!-- Emerald Royal Primary Colors -->
+    <color name="primary">#047857</color>
+    <color name="primary_dark">#064E3B</color>
+    <color name="primary_light">#D1FAE5</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#0F2922</color>
+    <color name="secondary_light">#365B4D</color>
+
+    <!-- Background & Surface -->
+    <color name="background">#F5F8F5</color>
     <color name="surface">#FFFFFF</color>
     <color name="card_bg">#FFFFFF</color>
-    <color name="text_primary">#0F172A</color>
-    <color name="text_secondary">#64748B</color>
-    <color name="text_hint">#94A3B8</color>
-    <color name="divider">#E2E8F0</color>
-    
-    <color name="success">#16A34A</color>
-    <color name="success_light">#DCFCE7</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#14251D</color>
+    <color name="text_secondary">#64756B</color>
+    <color name="text_hint">#9AA99F</color>
+
+    <!-- Divider -->
+    <color name="divider">#E1EAE3</color>
+
+    <!-- Status Colors -->
+    <color name="success">#059669</color>
+    <color name="success_light">#D1FAE5</color>
+
     <color name="danger">#DC2626</color>
     <color name="danger_light">#FEE2E2</color>
+
     <color name="warning">#D97706</color>
     <color name="warning_light">#FEF3C7</color>
+
     <color name="info">#0284C7</color>
     <color name="info_light">#E0F2FE</color>
 
-    <!-- Base / Material -->
-    <color name="purple_200">#BB86FC</color>
-    <color name="purple_500">#2563EB</color>
-    <color name="purple_700">#1D4ED8</color>
-    <color name="teal_200">#03DAC5</color>
-    <color name="teal_700">#018786</color>
+    <!-- Material Compatibility -->
+    <color name="purple_200">#A7F3D0</color>
+    <color name="purple_500">#047857</color>
+    <color name="purple_700">#064E3B</color>
+    <color name="teal_200">#6EE7B7</color>
+    <color name="teal_700">#047857</color>
+
+    <!-- Basic Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
 </resources>

@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="#050806">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -14,22 +14,32 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingBottom="100dp">
 
-            <!-- Top Header Card -->
+            <!-- Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/surface"
-                android:padding="20dp"
-                android:elevation="2dp">
+                android:padding="22dp"
+                android:background="#101B15">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SMART CLASSROOM"
+                    android:textColor="#10B981"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.16" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="18dp">
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -42,403 +52,426 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Welcome, Professor"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="23sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/tvTeacherInstitution"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="6dp"
                             android:text="Department of Computer Science"
-                            android:textSize="13sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="13sp" />
                     </LinearLayout>
 
                     <ImageButton
                         android:id="@+id/btnPendingRequests"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Pending Join Requests"
                         android:src="@drawable/ic_person"
-                        app:tint="@color/primary" />
+                        app:tint="#10B981" />
 
                     <ImageButton
                         android:id="@+id/btnTeacherProfile"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:layout_marginStart="4dp"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="3dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Profile"
                         android:src="@drawable/ic_school"
-                        app:tint="@color/secondary" />
+                        app:tint="#C6A15B" />
 
                     <ImageButton
                         android:id="@+id/btnLogout"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:layout_marginStart="4dp"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="3dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Logout"
                         android:src="@drawable/ic_logout"
-                        app:tint="@color/danger" />
+                        app:tint="#E87979" />
                 </LinearLayout>
 
-                <!-- Pending Join Requests Banner -->
+                <!-- Pending Requests -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardPendingBanner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    app:cardCornerRadius="12dp"
+                    android:layout_marginTop="20dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#172B20"
+                    app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="@color/primary"
-                    app:strokeWidth="1dp"
-                    app:cardBackgroundColor="@color/primary_light"
-                    android:visibility="gone">
+                    app:strokeColor="#47765A"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="12dp">
+                        android:padding="14dp">
 
                         <TextView
                             android:id="@+id/tvPendingCount"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="🔔 3 student join requests waiting for approval"
+                            android:text="3 student join requests waiting for approval"
+                            android:textColor="#F4F7F4"
                             android:textSize="13sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/primary_dark" />
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="REVIEW"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/primary" />
+                            android:textColor="#10B981"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
 
-            <!-- Dashboard Modules (Grid) -->
+            <!-- Management Modules -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="26dp"
                 android:text="Management Modules"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+                android:textColor="#F4F7F4"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="4dp"
+                android:text="Everything you need to manage your classes"
+                android:textColor="#89968E"
+                android:textSize="12sp" />
 
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:columnCount="2"
-                android:rowCount="3"
                 android:padding="12dp">
 
-                <!-- Module 1: Attendance -->
+                <!-- Attendance -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardAttendance"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_attendance"
-                            app:tint="@color/primary" />
+                            app:tint="#10B981" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="Attendance"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="5dp"
                             android:text="Mark &amp; view history"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Module 2: Marks Management -->
+                <!-- Marks -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardMarks"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_grade"
-                            app:tint="@color/primary" />
+                            app:tint="#C6A15B" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="Marks &amp; CTs"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="5dp"
                             android:text="CTs, Spot Tests, Marks"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Module 3: Class Schedule -->
+                <!-- Schedule -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardSchedule"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_schedule"
-                            app:tint="@color/primary" />
+                            app:tint="#10B981" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="Class Schedule"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="5dp"
                             android:text="Timetable &amp; extra classes"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Module 4: Notices -->
+                <!-- Notices -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardNotices"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_notice"
-                            app:tint="@color/primary" />
+                            app:tint="#C6A15B" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="Notices"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="5dp"
                             android:text="Post announcements"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Module 5: Student Management -->
+                <!-- Students -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardStudents"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_person"
-                            app:tint="@color/primary" />
+                            app:tint="#10B981" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="Students &amp; CR"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Add, edit, CR roles"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:layout_marginTop="5dp"
+                            android:text="Manage student roles"
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Module 6: Download Reports -->
+                <!-- Reports -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardReports"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="6dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="@color/card_bg"
-                    app:strokeColor="@color/divider"
+                    app:cardBackgroundColor="#101B15"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#294536"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="17dp">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:src="@drawable/ic_report"
-                            app:tint="@color/primary" />
+                            app:tint="#C6A15B" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="16dp"
                             android:text="PDF Reports"
-                            android:textSize="14sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="#F4F7F4"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="5dp"
                             android:text="Attendance &amp; Marks PDF"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="#89968E"
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
             </GridLayout>
 
-            <!-- My Classrooms Header -->
+            <!-- Classrooms Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="20dp"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="20dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="My Classrooms"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="My Classrooms"
+                        android:textColor="#F4F7F4"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="Manage your created classrooms"
+                        android:textColor="#89968E"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/btnCreateClassroomText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="10dp"
                     android:text="+ Create New"
+                    android:textColor="#10B981"
                     android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary"
-                    android:padding="6dp" />
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -446,8 +479,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:layout_marginTop="6dp"
-                android:layout_marginBottom="80dp" />
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="16dp" />
 
             <!-- Empty State -->
             <LinearLayout
@@ -456,37 +489,37 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="32dp"
+                android:padding="36dp"
                 android:visibility="gone">
 
                 <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
+                    android:layout_width="58dp"
+                    android:layout_height="58dp"
                     android:src="@drawable/ic_school"
-                    app:tint="@color/text_hint" />
+                    app:tint="#47765A" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="No Classrooms Created Yet"
+                    android:textColor="#F4F7F4"
                     android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_secondary" />
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Tap the + button to create your first classroom."
-                    android:textSize="13sp"
-                    android:textColor="@color/text_hint" />
+                    android:layout_marginTop="6dp"
+                    android:text="Create your first classroom to get started."
+                    android:textColor="#89968E"
+                    android:textSize="12sp" />
             </LinearLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Floating Action Button to Create Classroom -->
+    <!-- Create Classroom FAB -->
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fabCreateClassroom"
         android:layout_width="wrap_content"
@@ -494,9 +527,9 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="20dp"
         android:text="New Classroom"
-        android:textColor="@color/white"
+        android:textColor="#FFFFFF"
         app:icon="@drawable/ic_add"
-        app:iconTint="@color/white"
-        app:backgroundTint="@color/primary" />
+        app:iconTint="#FFFFFF"
+        app:backgroundTint="#10B981" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

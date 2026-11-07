@@ -116,6 +116,20 @@
                 android:textColor="@color/text_secondary" />
         </LinearLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeleteClassroom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Delete Classroom"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:visibility="gone"
+            app:icon="@android:drawable/ic_menu_delete"
+            app:iconTint="@android:color/white"
+            app:backgroundTint="#D32F2F"
+            app:cornerRadius="10dp" />
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
